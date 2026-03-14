@@ -1,6 +1,6 @@
 # device-shots
 
-A CLI tool that captures screenshots from running iOS simulators and Android emulators, then optionally frames iOS screenshots with device bezels. Built for developers who need store-ready screenshots without manual work.
+A CLI tool that captures screenshots from running iOS simulators and Android emulators, then frames them for store-ready use. iOS screenshots get real device bezels, Android screenshots get a clean black border with rounded corners. Built for developers who need store-ready screenshots without manual work.
 
 ## What it does
 
@@ -9,7 +9,8 @@ A CLI tool that captures screenshots from running iOS simulators and Android emu
 3. **Captures screenshots** — Takes screenshots from every discovered device in one go
 4. **Transparent Android status bar** — Automatically makes the Android status bar area transparent using ImageMagick
 5. **Frames iOS screenshots** — Wraps iOS screenshots in device bezels (iPhone/iPad frames) using [device-frames-core](https://pypi.org/project/device-frames-core/)
-6. **Organizes by screen size** — Saves screenshots into store-aligned size buckets (e.g. `6.9`, `6.7`, `phone`) instead of device names
+6. **Frames Android screenshots** — Adds a black border with rounded corners for a clean device-like look (requires ImageMagick)
+7. **Organizes by screen size** — Saves screenshots into store-aligned size buckets (e.g. `6.9`, `6.3`, `phone`) instead of device names
 
 ## Use cases
 
@@ -28,8 +29,8 @@ A CLI tool that captures screenshots from running iOS simulators and Android emu
 
 ### Optional
 
-- **ImageMagick** — needed to make Android status bars transparent. Install with `brew install imagemagick`
-- **Python 3** — needed for iOS screenshot framing. The tool auto-creates a virtual environment at `~/.device-shots/.venv` and installs `device-frames-core` and `Pillow` automatically on first use
+- **ImageMagick** — needed for Android status bar transparency and Android framing (black border + rounded corners). Install with `brew install imagemagick`
+- **Python 3** — needed for iOS screenshot framing with device bezels. The tool auto-creates a virtual environment at `~/.device-shots/.venv` and installs `device-frames-core` and `Pillow` automatically on first use
 
 ## Install
 
@@ -67,7 +68,7 @@ device-shots capture checkout -b com.example.myapp --time "10:30"
 ### Frame existing screenshots
 
 ```bash
-# Frame all unframed iOS screenshots in ./.screenshots
+# Frame all unframed screenshots (iOS + Android) in ./.screenshots
 device-shots frame
 
 # Frame from a specific directory
@@ -125,7 +126,9 @@ Screenshots are organized by platform and screen size bucket, matching App Store
 ├── android/
 │   └── phone/                        # Pixel 9 Pro, etc.
 │       ├── dashboard.png
-│       └── settings.png
+│       ├── dashboard_framed.png
+│       ├── settings.png
+│       └── settings_framed.png
 └── metadata.json
 ```
 
@@ -174,6 +177,26 @@ Tracks which physical device was used for each size bucket:
   }
 }
 ```
+
+## Framing
+
+Both platforms get framed automatically after capture (disable with `--no-frame`).
+
+### iOS — Device bezels
+
+Uses [device-frames-core](https://pypi.org/project/device-frames-core/) to wrap screenshots in realistic Apple device frames (iPhone, iPad). The device model is auto-detected from the screenshot resolution. Requires Python 3 (venv is managed automatically).
+
+### Android — Black border with rounded corners
+
+Uses ImageMagick to add a black bezel-like border with rounded corners. Dimensions scale proportionally to the screenshot:
+
+| Property | Value |
+|----------|-------|
+| Border width | ~1.8% of image width |
+| Inner corner radius | ~4.5% of image width |
+| Outer corner radius | inner radius + border width |
+
+For a 1080px wide screenshot, this produces a ~19px border with ~49px rounded corners.
 
 ## License
 
