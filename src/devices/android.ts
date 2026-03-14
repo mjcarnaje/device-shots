@@ -91,67 +91,6 @@ export async function discoverAndroidDevices(
   return devices;
 }
 
-import { execSync } from "node:child_process";
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function adbShellSync(adb: string, serial: string, cmd: string): string {
-  try {
-    const result = execSync(`${adb} -s ${serial} shell ${cmd}`, {
-      encoding: "utf-8",
-      timeout: 10000,
-    });
-    return result.trim();
-  } catch (e: any) {
-    return e.stdout?.trim() || e.stderr?.trim() || "";
-  }
-}
-
-export async function setAndroidDemoMode(
-  serial: string,
-  time: string = "9:30"
-): Promise<void> {
-  const hhmm = time.replace(":", "");
-  const adb = getAdbPath();
-  const ACTION = "com.android.systemui.demo";
-
-  // Enable demo mode
-  adbShellSync(adb, serial, "settings put global sysui_demo_allowed 1");
-  adbShellSync(adb, serial, "settings put global sysui_tuner_demo_on 1");
-  await sleep(500);
-
-  // Enter demo mode
-  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command enter`);
-  await sleep(1000);
-
-  // Set clock
-  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command clock --es hhmm ${hhmm}`);
-
-  // Set wifi
-  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command network --es wifi show --es level 4`);
-
-  // Set mobile/cellular
-  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command network --es mobile show --es datatype none --es level 4`);
-
-  // Set battery
-  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command battery --es level 100 --es plugged false`);
-
-  // Hide notifications
-  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command notifications --es visible false`);
-
-  // Wait for UI to render
-  await sleep(1000);
-}
-
-export async function clearAndroidDemoMode(serial: string): Promise<void> {
-  const adb = getAdbPath();
-  const ACTION = "com.android.systemui.demo";
-  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command exit`);
-  adbShellSync(adb, serial, "settings put global sysui_tuner_demo_on 0");
-}
-
 export async function captureAndroidScreenshot(
   serial: string,
   outputPath: string

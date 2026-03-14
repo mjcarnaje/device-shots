@@ -29,8 +29,6 @@ import {
   captureIosScreenshot,
 } from "../devices/ios.js";
 import {
-  setAndroidDemoMode,
-  clearAndroidDemoMode,
   captureAndroidScreenshot,
 } from "../devices/android.js";
 import { frameAllIosScreenshots, frameAllAndroidScreenshots } from "../framing/frame.js";
@@ -54,7 +52,6 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
   const outputDir = options.output || config.output;
   const platform = options.platform || config.platform;
   const iosTime = options.time || config.time;
-  const androidTime = config.androidTime;
   const shouldFrame = !options.noFrame && config.frame;
 
   // Discover devices
@@ -154,14 +151,6 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
     s.succeed("iOS status bar set");
   }
 
-  if (androidDevices.length > 0) {
-    const s = ora("Setting clean Android status bar...").start();
-    for (const device of androidDevices) {
-      await setAndroidDemoMode(device.captureId, androidTime);
-    }
-    s.succeed("Android demo mode set");
-  }
-
   // Capture screenshots
   console.log("");
   const captured: CapturedFile[] = [];
@@ -218,9 +207,6 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
   // Restore status bars
   if (iosDevices.length > 0) {
     await clearIosStatusBar();
-  }
-  for (const device of androidDevices) {
-    await clearAndroidDemoMode(device.captureId);
   }
 
   const skippedDupes = captured.length - movedBuckets.size;
