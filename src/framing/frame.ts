@@ -86,8 +86,8 @@ export async function frameAndroidScreenshot(
   const height = parseInt(match[2], 10);
 
   // Fixed pixel values so all device sizes look consistent
-  const padding = 26;
-  const radius = 44;
+  const padding = 40;
+  const radius = 70;
   const totalW = width + padding * 2;
   const totalH = height + padding * 2;
 
