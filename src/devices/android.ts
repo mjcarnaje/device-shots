@@ -91,14 +91,22 @@ export async function discoverAndroidDevices(
   return devices;
 }
 
-async function adbShell(serial: string, cmd: string): Promise<string> {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function adbShell(serial: string, args: string[]): Promise<string> {
   const adb = getAdbPath();
-  const { stdout, stderr } = await run(adb, ["-s", serial, "shell", cmd]);
+  const { stdout, stderr } = await run(adb, ["-s", serial, "shell", ...args]);
   return stdout || stderr;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+async function demoBroadcast(serial: string, extras: string[]): Promise<void> {
+  await adbShell(serial, [
+    "am", "broadcast",
+    "-a", "com.android.systemui.demo",
+    ...extras,
+  ]);
 }
 
 export async function setAndroidDemoMode(
@@ -108,56 +116,33 @@ export async function setAndroidDemoMode(
   const hhmm = time.replace(":", "");
 
   // Enable demo mode
-  await adbShell(serial, "settings put global sysui_demo_allowed 1");
+  await adbShell(serial, ["settings", "put", "global", "sysui_demo_allowed", "1"]);
 
   // Enter demo mode
-  await adbShell(
-    serial,
-    "am broadcast -a com.android.systemui.demo -e command enter"
-  );
-
-  // Small delay to let demo mode activate
+  await demoBroadcast(serial, ["-e", "command", "enter"]);
   await sleep(500);
 
   // Set clock
-  await adbShell(
-    serial,
-    `am broadcast -a com.android.systemui.demo -e command clock -e hhmm ${hhmm}`
-  );
+  await demoBroadcast(serial, ["-e", "command", "clock", "-e", "hhmm", hhmm]);
 
-  // Set wifi
-  await adbShell(
-    serial,
-    "am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4"
-  );
+  // Set wifi (full signal, visible)
+  await demoBroadcast(serial, ["-e", "command", "network", "-e", "wifi", "show", "-e", "level", "4"]);
 
-  // Set mobile/cellular
-  await adbShell(
-    serial,
-    "am broadcast -a com.android.systemui.demo -e command network -e mobile show -e datatype none -e level 4"
-  );
+  // Set mobile/cellular (full signal, hide data type indicator)
+  await demoBroadcast(serial, ["-e", "command", "network", "-e", "mobile", "show", "-e", "datatype", "none", "-e", "level", "4"]);
 
   // Set battery
-  await adbShell(
-    serial,
-    "am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false"
-  );
+  await demoBroadcast(serial, ["-e", "command", "battery", "-e", "level", "100", "-e", "plugged", "false"]);
 
   // Hide notifications
-  await adbShell(
-    serial,
-    "am broadcast -a com.android.systemui.demo -e command notifications -e visible false"
-  );
+  await demoBroadcast(serial, ["-e", "command", "notifications", "-e", "visible", "false"]);
 
   // Wait for all changes to render
-  await sleep(500);
+  await sleep(1000);
 }
 
 export async function clearAndroidDemoMode(serial: string): Promise<void> {
-  await adbShell(
-    serial,
-    "am broadcast -a com.android.systemui.demo -e command exit"
-  );
+  await demoBroadcast(serial, ["-e", "command", "exit"]);
 }
 
 export async function captureAndroidScreenshot(
