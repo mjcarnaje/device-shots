@@ -33,7 +33,7 @@ import {
   captureAndroidScreenshot,
   makeStatusBarTransparent,
 } from "../devices/android.js";
-import { frameAllIosScreenshots } from "../framing/frame.js";
+import { frameAllIosScreenshots, frameAllAndroidScreenshots } from "../framing/frame.js";
 
 export async function captureCommand(options: CaptureOptions): Promise<void> {
   const config = await loadConfig();
@@ -221,17 +221,35 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
     )
   );
 
-  // Frame iOS screenshots
-  if (shouldFrame && iosDevices.length > 0) {
-    console.log("");
-    const s = ora("Framing iOS screenshots...").start();
-    try {
-      const framed = await frameAllIosScreenshots(outputDir);
-      s.succeed(`Framed ${framed} screenshot(s)`);
-    } catch (error) {
-      s.fail(
-        `Framing failed: ${error instanceof Error ? error.message : error}`
-      );
+  // Frame screenshots
+  if (shouldFrame) {
+    if (iosDevices.length > 0) {
+      console.log("");
+      const s = ora("Framing iOS screenshots...").start();
+      try {
+        const framed = await frameAllIosScreenshots(outputDir);
+        s.succeed(`Framed ${framed} iOS screenshot(s)`);
+      } catch (error) {
+        s.fail(
+          `iOS framing failed: ${error instanceof Error ? error.message : error}`
+        );
+      }
+    }
+
+    if (androidDevices.length > 0) {
+      const s = ora("Framing Android screenshots...").start();
+      try {
+        const framed = await frameAllAndroidScreenshots(outputDir);
+        if (framed > 0) {
+          s.succeed(`Framed ${framed} Android screenshot(s)`);
+        } else {
+          s.info("Android framing skipped (ImageMagick not found)");
+        }
+      } catch (error) {
+        s.fail(
+          `Android framing failed: ${error instanceof Error ? error.message : error}`
+        );
+      }
     }
   }
 }

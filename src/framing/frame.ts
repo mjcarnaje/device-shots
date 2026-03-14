@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runOrFail } from "../exec.js";
+import { commandExists, run, runOrFail } from "../exec.js";
 import { ensureVenv, getVenvPython } from "./setup.js";
 
 function getFramePyPath(): string {
@@ -51,15 +51,70 @@ export async function frameScreenshots(
 }
 
 /**
- * Frame all iOS screenshots in the new flat structure.
+ * Frame a single Android screenshot with a black border and rounded corners.
  *
- * Structure:
- *   .screenshots/ios/6.9/dashboard.png       -> raw
- *   .screenshots/ios/6.9/dashboard_framed.png -> framed (output)
- *
- * frame.py takes a raw dir and a framed dir. In the new structure,
- * both are the same directory — frame.py already outputs *_framed.png
- * and skips files that end with _framed.png.
+ * Uses ImageMagick to:
+ * 1. Round the screenshot corners (inner radius)
+ * 2. Place it on a black rounded rectangle (outer radius)
+ */
+export async function frameAndroidScreenshot(
+  inputPath: string,
+  outputPath: string
+): Promise<boolean> {
+  if (!(await commandExists("magick"))) {
+    throw new Error("ImageMagick is required for Android framing. Install with: brew install imagemagick");
+  }
+
+  // Get image dimensions
+  const { stdout: identify } = await run("magick", [
+    "identify",
+    "-format",
+    "%wx%h",
+    inputPath,
+  ]);
+  const match = identify.match(/(\d+)x(\d+)/);
+  if (!match) return false;
+
+  const width = parseInt(match[1], 10);
+  const height = parseInt(match[2], 10);
+
+  // Scale border and radius proportional to image width
+  const borderWidth = Math.round(width * 0.018);
+  const innerRadius = Math.round(width * 0.045);
+  const outerRadius = innerRadius + borderWidth;
+  const totalW = width + borderWidth * 2;
+  const totalH = height + borderWidth * 2;
+
+  try {
+    await runOrFail("magick", [
+      // Create black rounded rectangle background
+      "-size", `${totalW}x${totalH}`, "xc:none",
+      "-draw", `fill black roundrectangle 0,0 ${totalW - 1},${totalH - 1} ${outerRadius},${outerRadius}`,
+      // Load screenshot and round its corners
+      "(",
+        inputPath,
+        "-alpha", "set",
+        "(", "+clone",
+          "-alpha", "extract",
+          "-draw", `fill black color 0,0 reset`,
+          "-draw", `fill white roundrectangle 0,0 ${width - 1},${height - 1} ${innerRadius},${innerRadius}`,
+        ")",
+        "-compose", "DstIn", "-composite",
+      ")",
+      // Composite screenshot centered on black background
+      "-gravity", "center",
+      "-compose", "Over",
+      "-composite",
+      outputPath,
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Frame all iOS screenshots in the flat structure.
  */
 export async function frameAllIosScreenshots(
   screenshotsDir: string,
@@ -81,9 +136,46 @@ export async function frameAllIosScreenshots(
     );
     if (pngFiles.length === 0) continue;
 
-    // In the flat structure, raw and framed live in the same directory
     const { framed } = await frameScreenshots(dirPath, dirPath, force);
     totalFramed += framed;
+  }
+
+  return totalFramed;
+}
+
+/**
+ * Frame all Android screenshots with black border + rounded corners.
+ */
+export async function frameAllAndroidScreenshots(
+  screenshotsDir: string,
+  force: boolean = false
+): Promise<number> {
+  if (!(await commandExists("magick"))) return 0;
+
+  const androidDir = join(screenshotsDir, "android");
+  if (!existsSync(androidDir)) return 0;
+
+  let totalFramed = 0;
+  const sizeDirs = readdirSync(androidDir, { withFileTypes: true }).filter(
+    (d) => d.isDirectory()
+  );
+
+  for (const sizeDir of sizeDirs) {
+    const dirPath = join(androidDir, sizeDir.name);
+
+    const rawFiles = readdirSync(dirPath).filter(
+      (f) => f.endsWith(".png") && !f.includes("_framed")
+    );
+
+    for (const file of rawFiles) {
+      const inputPath = join(dirPath, file);
+      const outputPath = join(dirPath, file.replace(".png", "_framed.png"));
+
+      if (!force && existsSync(outputPath)) continue;
+
+      const success = await frameAndroidScreenshot(inputPath, outputPath);
+      if (success) totalFramed++;
+    }
   }
 
   return totalFramed;
