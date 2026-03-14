@@ -1,6 +1,6 @@
 {
   "name": "device-shots",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Capture and frame mobile app screenshots from iOS simulators and Android emulators",
   "type": "module",
   "bin": {

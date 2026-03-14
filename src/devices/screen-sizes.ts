@@ -72,7 +72,7 @@ export function getAndroidScreenSize(
 
   // Phones have tall aspect ratios (>= 1.7), tablets are squarer (< 1.7)
   if (ratio >= 1.7) return "phone";
-  if (shorter >= 1800) return "tablet-10";
+  if (shorter >= 1500) return "tablet-10";
   if (shorter >= 1200) return "tablet-7";
   return "phone";
 }
