@@ -5,7 +5,7 @@ const MODULE_NAME = "device-shots";
 
 const DEFAULTS: Config = {
   bundleId: "",
-  output: "./screenshots",
+  output: "./.screenshots",
   platform: "both",
   time: "9:41",
   frame: true,
@@ -30,7 +30,7 @@ export function createDefaultConfig(bundleId: string): string {
   return JSON.stringify(
     {
       bundleId,
-      output: "./screenshots",
+      output: "./.screenshots",
       platform: "both",
       time: "9:41",
       frame: true,

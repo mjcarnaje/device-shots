@@ -1,10 +1,24 @@
 import type { DeviceInfo } from "../types.js";
 import { commandExists, getAdbPath, run, runOrFail } from "../exec.js";
+import { getAndroidScreenSize } from "./screen-sizes.js";
 
 function sanitizeName(name: string): string {
   return name
     .replace(/[ (),]/g, "_")
     .replace(/[^A-Za-z0-9_-]/g, "");
+}
+
+async function getAndroidResolution(
+  serial: string
+): Promise<{ width: number; height: number } | null> {
+  const adb = getAdbPath();
+  const { stdout } = await run(adb, ["-s", serial, "shell", "wm", "size"]);
+  const match = stdout.match(/(\d+)x(\d+)/);
+  if (!match) return null;
+  return {
+    width: parseInt(match[1], 10),
+    height: parseInt(match[2], 10),
+  };
 }
 
 export async function discoverAndroidDevices(
@@ -59,12 +73,18 @@ export async function discoverAndroidDevices(
     }
 
     const safeName = sanitizeName(avdName) || serial;
+    const resolution = await getAndroidResolution(serial);
+    const screenSize = resolution
+      ? getAndroidScreenSize(resolution.width, resolution.height)
+      : "phone";
 
     devices.push({
       platform: "android",
       safeName,
       captureId: serial,
       displayName: avdName || serial,
+      screenSize,
+      resolution: resolution ?? { width: 0, height: 0 },
     });
   }
 

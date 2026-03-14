@@ -5,10 +5,7 @@ import { runOrFail } from "../exec.js";
 import { ensureVenv, getVenvPython } from "./setup.js";
 
 function getFramePyPath(): string {
-  // Resolve relative to this file -> ../../vendor/frame.py
   const thisDir = dirname(fileURLToPath(import.meta.url));
-  // In dist, this file is at dist/index.js (bundled), so vendor is at ../vendor
-  // Try multiple possible locations
   const candidates = [
     join(thisDir, "..", "vendor", "frame.py"),
     join(thisDir, "..", "..", "vendor", "frame.py"),
@@ -24,8 +21,8 @@ function getFramePyPath(): string {
 }
 
 export async function frameScreenshots(
-  rawDir: string,
-  framedDir: string,
+  inputDir: string,
+  outputDir: string,
   force: boolean = false
 ): Promise<{ framed: number; skipped: number }> {
   await ensureVenv();
@@ -33,7 +30,7 @@ export async function frameScreenshots(
   const framePy = getFramePyPath();
   const python = getVenvPython();
 
-  const args = [framePy, rawDir, framedDir];
+  const args = [framePy, inputDir, outputDir];
   if (force) {
     args.push("--force");
   }
@@ -43,17 +40,27 @@ export async function frameScreenshots(
     process.stdout.write(output + "\n");
   }
 
-  // Count results
-  const framedFiles = existsSync(framedDir)
-    ? readdirSync(framedDir).filter((f) => f.endsWith(".png")).length
+  const framedFiles = existsSync(outputDir)
+    ? readdirSync(outputDir).filter((f) => f.endsWith(".png")).length
     : 0;
-  const rawFiles = existsSync(rawDir)
-    ? readdirSync(rawDir).filter((f) => f.endsWith(".png")).length
+  const rawFiles = existsSync(inputDir)
+    ? readdirSync(inputDir).filter((f) => f.endsWith(".png")).length
     : 0;
 
   return { framed: framedFiles, skipped: rawFiles - framedFiles };
 }
 
+/**
+ * Frame all iOS screenshots in the new flat structure.
+ *
+ * Structure:
+ *   .screenshots/ios/6.9/dashboard.png       -> raw
+ *   .screenshots/ios/6.9/dashboard_framed.png -> framed (output)
+ *
+ * frame.py takes a raw dir and a framed dir. In the new structure,
+ * both are the same directory — frame.py already outputs *_framed.png
+ * and skips files that end with _framed.png.
+ */
 export async function frameAllIosScreenshots(
   screenshotsDir: string,
   force: boolean = false
@@ -62,18 +69,20 @@ export async function frameAllIosScreenshots(
   if (!existsSync(iosDir)) return 0;
 
   let totalFramed = 0;
-  const deviceDirs = readdirSync(iosDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory());
+  const sizeDirs = readdirSync(iosDir, { withFileTypes: true }).filter(
+    (d) => d.isDirectory()
+  );
 
-  for (const deviceDir of deviceDirs) {
-    const rawDir = join(iosDir, deviceDir.name, "raw");
-    if (!existsSync(rawDir)) continue;
+  for (const sizeDir of sizeDirs) {
+    const dirPath = join(iosDir, sizeDir.name);
 
-    const pngFiles = readdirSync(rawDir).filter((f) => f.endsWith(".png"));
+    const pngFiles = readdirSync(dirPath).filter(
+      (f) => f.endsWith(".png") && !f.includes("_framed")
+    );
     if (pngFiles.length === 0) continue;
 
-    const framedDir = join(iosDir, deviceDir.name, "framed");
-    const { framed } = await frameScreenshots(rawDir, framedDir, force);
+    // In the flat structure, raw and framed live in the same directory
+    const { framed } = await frameScreenshots(dirPath, dirPath, force);
     totalFramed += framed;
   }
 

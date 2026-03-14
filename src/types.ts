@@ -3,13 +3,26 @@ export interface DeviceInfo {
   safeName: string;
   captureId: string;
   displayName: string;
+  screenSize: string; // e.g. "6.9", "6.7", "phone", "7-inch-tablet"
+  resolution: { width: number; height: number };
 }
 
 export interface CapturedFile {
   platform: "ios" | "android";
-  safeName: string;
+  screenSize: string;
   filename: string;
   tmpPath: string;
+}
+
+export interface ScreenshotMetadata {
+  ios: Record<string, DeviceMetaEntry>;
+  android: Record<string, DeviceMetaEntry>;
+}
+
+export interface DeviceMetaEntry {
+  device: string;
+  id: string;
+  resolution: string;
 }
 
 export interface Config {

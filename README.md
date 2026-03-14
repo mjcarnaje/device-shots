@@ -9,7 +9,7 @@ A CLI tool that captures screenshots from running iOS simulators and Android emu
 3. **Captures screenshots** — Takes screenshots from every discovered device in one go
 4. **Transparent Android status bar** — Automatically makes the Android status bar area transparent using ImageMagick
 5. **Frames iOS screenshots** — Wraps iOS screenshots in device bezels (iPhone/iPad frames) using [device-frames-core](https://pypi.org/project/device-frames-core/)
-6. **Organizes output** — Saves everything in a clean folder structure: `screenshots/<platform>/<device>/raw/` and `screenshots/ios/<device>/framed/`
+6. **Organizes by screen size** — Saves screenshots into store-aligned size buckets (e.g. `6.9`, `6.7`, `phone`) instead of device names
 
 ## Use cases
 
@@ -55,7 +55,7 @@ device-shots capture --bundle-id com.example.myapp
 device-shots capture dashboard --bundle-id com.example.myapp
 
 # iOS only, custom output directory
-device-shots capture home -b com.example.myapp -p ios -o ./store-assets
+device-shots capture home -b com.example.myapp -p ios -o ./.store-assets
 
 # Skip framing
 device-shots capture login -b com.example.myapp --no-frame
@@ -67,11 +67,11 @@ device-shots capture checkout -b com.example.myapp --time "10:30"
 ### Frame existing screenshots
 
 ```bash
-# Frame all unframed iOS screenshots in ./screenshots
+# Frame all unframed iOS screenshots in ./.screenshots
 device-shots frame
 
 # Frame from a specific directory
-device-shots frame ./my-screenshots
+device-shots frame ./.my-screenshots
 
 # Re-frame everything (overwrite existing framed images)
 device-shots frame --force
@@ -88,7 +88,7 @@ Creates a `.device-shotsrc.json` in the current directory so you don't have to p
 ```json
 {
   "bundleId": "com.example.myapp",
-  "output": "./screenshots",
+  "output": "./.screenshots",
   "platform": "both",
   "time": "9:41",
   "frame": true
@@ -107,24 +107,72 @@ The tool uses [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig), so you 
 
 ## Output structure
 
+Screenshots are organized by platform and screen size bucket, matching App Store and Play Store requirements:
+
 ```
-screenshots/
+.screenshots/
 ├── ios/
-│   ├── iPhone_16_Pro_Max/
-│   │   ├── raw/
-│   │   │   ├── dashboard_iPhone_16_Pro_Max.png
-│   │   │   └── settings_iPhone_16_Pro_Max.png
-│   │   └── framed/
-│   │       ├── dashboard_iPhone_16_Pro_Max_framed.png
-│   │       └── settings_iPhone_16_Pro_Max_framed.png
-│   └── iPhone_16/
-│       ├── raw/
-│       └── framed/
-└── android/
-    └── Pixel_9_Pro/
-        └── raw/
-            ├── dashboard_Pixel_9_Pro.png
-            └── settings_Pixel_9_Pro.png
+│   ├── 6.9/                          # iPhone 16 Pro Max
+│   │   ├── dashboard.png
+│   │   ├── dashboard_framed.png
+│   │   ├── settings.png
+│   │   └── settings_framed.png
+│   ├── 6.7/                          # iPhone 16 Plus, 15 Pro Max
+│   │   ├── dashboard.png
+│   │   └── dashboard_framed.png
+│   └── 6.3/                          # iPhone 16 Pro
+│       └── ...
+├── android/
+│   └── phone/                        # Pixel 9 Pro, etc.
+│       ├── dashboard.png
+│       └── settings.png
+└── metadata.json
+```
+
+### Screen size buckets
+
+**iOS** — Maps to App Store Connect display size categories:
+
+| Bucket | Devices |
+|--------|---------|
+| `6.9` | iPhone 16 Pro Max |
+| `6.7` | iPhone 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max |
+| `6.5` | iPhone 14 Plus, 13 Pro Max, 12 Pro Max, 11 Pro Max |
+| `6.3` | iPhone 16 Pro |
+| `6.1` | iPhone 16, 15, 15 Pro, 14, 14 Pro, 13, 13 Pro |
+| `5.5` | iPhone 8 Plus, 7 Plus |
+| `13` | iPad Pro 13" |
+| `11` | iPad Pro 11", iPad Air |
+
+**Android** — Categorized by form factor:
+
+| Bucket | Criteria |
+|--------|----------|
+| `phone` | Shorter screen dimension < 1200px |
+| `tablet-7` | Shorter dimension 1200–1799px |
+| `tablet-10` | Shorter dimension 1800px+ |
+
+### metadata.json
+
+Tracks which physical device was used for each size bucket:
+
+```json
+{
+  "ios": {
+    "6.9": {
+      "device": "iPhone 16 Pro Max",
+      "id": "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+      "resolution": "1320x2868"
+    }
+  },
+  "android": {
+    "phone": {
+      "device": "Pixel 9 Pro",
+      "id": "emulator-5554",
+      "resolution": "1080x2340"
+    }
+  }
+}
 ```
 
 ## License

@@ -1,14 +1,32 @@
-import { existsSync, mkdirSync, readdirSync, renameSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  renameSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { mkdtempSync } from "node:fs";
 import ora from "ora";
 import pc from "picocolors";
 import prompts from "prompts";
-import type { CaptureOptions, CapturedFile, Config, DeviceInfo } from "../types.js";
+import type {
+  CaptureOptions,
+  CapturedFile,
+  Config,
+  DeviceInfo,
+  ScreenshotMetadata,
+  DeviceMetaEntry,
+} from "../types.js";
 import { loadConfig } from "../config.js";
 import { discoverDevices } from "../devices/discover.js";
-import { setIosStatusBar, clearIosStatusBar, captureIosScreenshot } from "../devices/ios.js";
+import {
+  setIosStatusBar,
+  clearIosStatusBar,
+  captureIosScreenshot,
+} from "../devices/ios.js";
 import {
   setAndroidDemoMode,
   clearAndroidDemoMode,
@@ -49,18 +67,17 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
     pc.bold(`\nDetected ${devices.length} device(s) with ${bundleId}:`)
   );
   for (const device of devices) {
-    const deviceDir = join(outputDir, device.platform, device.safeName);
-    const rawDir = join(deviceDir, "raw");
-    if (existsSync(rawDir)) {
-      const count = readdirSync(rawDir).filter((f) =>
-        f.endsWith(".png")
+    const sizeDir = join(outputDir, device.platform, device.screenSize);
+    if (existsSync(sizeDir)) {
+      const count = readdirSync(sizeDir).filter(
+        (f) => f.endsWith(".png") && !f.includes("_framed")
       ).length;
       console.log(
-        `  ${pc.dim(device.platform + "/")}${device.safeName} (${device.displayName}) - ${count} screenshot(s)`
+        `  ${pc.dim(device.platform + "/")}${device.screenSize} ${pc.dim("(" + device.displayName + ")")} - ${count} screenshot(s)`
       );
     } else {
       console.log(
-        `  ${pc.dim(device.platform + "/")}${device.safeName} (${device.displayName}) - ${pc.green("new")}`
+        `  ${pc.dim(device.platform + "/")}${device.screenSize} ${pc.dim("(" + device.displayName + ")")} - ${pc.green("new")}`
       );
     }
   }
@@ -100,9 +117,8 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
   const existingFile = join(
     outputDir,
     firstDevice.platform,
-    firstDevice.safeName,
-    "raw",
-    `${screenshotName}_${firstDevice.safeName}.png`
+    firstDevice.screenSize,
+    `${screenshotName}.png`
   );
 
   if (existsSync(existingFile)) {
@@ -145,10 +161,12 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
   const captured: CapturedFile[] = [];
 
   for (const device of devices) {
-    const filename = `${screenshotName}_${device.safeName}.png`;
-    const tmpPath = join(tmpDir, filename);
+    const filename = `${screenshotName}.png`;
+    const tmpPath = join(tmpDir, `${device.platform}_${device.screenSize}_${filename}`);
     const icon = device.platform === "ios" ? "iOS" : "Android";
-    const s = ora(`${icon}: Capturing from ${device.displayName}...`).start();
+    const s = ora(
+      `${icon}: Capturing from ${device.displayName}...`
+    ).start();
 
     let success = false;
     if (device.platform === "ios") {
@@ -169,11 +187,11 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
     if (success) {
       captured.push({
         platform: device.platform,
-        safeName: device.safeName,
+        screenSize: device.screenSize,
         filename,
         tmpPath,
       });
-      s.succeed(`${icon}: ${device.displayName}`);
+      s.succeed(`${icon}: ${device.screenSize} (${device.displayName})`);
     } else {
       s.fail(`${icon}: Failed to capture from ${device.displayName}`);
     }
@@ -181,17 +199,13 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
 
   // Move screenshots to output directory
   for (const file of captured) {
-    const destDir = join(outputDir, file.platform, file.safeName, "raw");
+    const destDir = join(outputDir, file.platform, file.screenSize);
     mkdirSync(destDir, { recursive: true });
-
-    if (file.platform === "ios") {
-      mkdirSync(join(outputDir, file.platform, file.safeName, "framed"), {
-        recursive: true,
-      });
-    }
-
     renameSync(file.tmpPath, join(destDir, file.filename));
   }
+
+  // Update metadata.json
+  updateMetadata(outputDir, devices);
 
   // Restore status bars
   if (iosDevices.length > 0) {
@@ -229,19 +243,43 @@ function getExistingScreenshotNames(
   const names = new Set<string>();
 
   for (const device of devices) {
-    const rawDir = join(outputDir, device.platform, device.safeName, "raw");
-    if (!existsSync(rawDir)) continue;
+    const sizeDir = join(outputDir, device.platform, device.screenSize);
+    if (!existsSync(sizeDir)) continue;
 
-    for (const file of readdirSync(rawDir)) {
-      if (!file.endsWith(".png")) continue;
-      // Strip device suffix: "name_DeviceName.png" -> "name"
-      const base = file.replace(".png", "");
-      const suffix = `_${device.safeName}`;
-      if (base.endsWith(suffix)) {
-        names.add(base.slice(0, -suffix.length));
-      }
+    for (const file of readdirSync(sizeDir)) {
+      if (!file.endsWith(".png") || file.includes("_framed")) continue;
+      names.add(file.replace(".png", ""));
     }
   }
 
   return [...names].sort();
+}
+
+function updateMetadata(
+  outputDir: string,
+  devices: DeviceInfo[]
+): void {
+  const metaPath = join(outputDir, "metadata.json");
+  let metadata: ScreenshotMetadata = { ios: {}, android: {} };
+
+  if (existsSync(metaPath)) {
+    try {
+      metadata = JSON.parse(readFileSync(metaPath, "utf-8"));
+    } catch {
+      // Start fresh
+    }
+  }
+
+  for (const device of devices) {
+    const entry: DeviceMetaEntry = {
+      device: device.displayName,
+      id: device.captureId,
+      resolution: `${device.resolution.width}x${device.resolution.height}`,
+    };
+
+    metadata[device.platform][device.screenSize] = entry;
+  }
+
+  mkdirSync(outputDir, { recursive: true });
+  writeFileSync(metaPath, JSON.stringify(metadata, null, 2) + "\n");
 }
