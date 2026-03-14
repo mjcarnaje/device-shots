@@ -123,29 +123,23 @@ export async function setAndroidDemoMode(
   await sleep(500);
 
   // Enter demo mode
-  let r = adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command enter`);
-  process.stderr.write(`[demo] enter: ${r}\n`);
+  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command enter`);
   await sleep(1000);
 
   // Set clock
-  r = adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command clock --es hhmm ${hhmm}`);
-  process.stderr.write(`[demo] clock: ${r}\n`);
+  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command clock --es hhmm ${hhmm}`);
 
   // Set wifi
-  r = adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command network --es wifi show --es level 4`);
-  process.stderr.write(`[demo] wifi: ${r}\n`);
+  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command network --es wifi show --es level 4`);
 
   // Set mobile/cellular
-  r = adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command network --es mobile show --es datatype none --es level 4`);
-  process.stderr.write(`[demo] mobile: ${r}\n`);
+  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command network --es mobile show --es datatype none --es level 4`);
 
   // Set battery
-  r = adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command battery --es level 100 --es plugged false`);
-  process.stderr.write(`[demo] battery: ${r}\n`);
+  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command battery --es level 100 --es plugged false`);
 
   // Hide notifications
-  r = adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command notifications --es visible false`);
-  process.stderr.write(`[demo] notif: ${r}\n`);
+  adbShellSync(adb, serial, `am broadcast -a ${ACTION} --es command notifications --es visible false`);
 
   // Wait for UI to render
   await sleep(1000);
