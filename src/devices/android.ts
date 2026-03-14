@@ -101,46 +101,63 @@ async function adbExec(serial: string, args: string[]): Promise<string> {
   return stdout || stderr;
 }
 
+async function demoBroadcast(serial: string, extras: string): Promise<string> {
+  const adb = getAdbPath();
+  // Use sh -c to ensure the full command is interpreted as one shell command
+  const cmd = `am broadcast -a com.android.systemui.demo ${extras}`;
+  const { stdout, stderr } = await run(adb, ["-s", serial, "shell", "sh", "-c", cmd]);
+  return stdout || stderr;
+}
+
 export async function setAndroidDemoMode(
   serial: string,
   time: string = "9:30"
 ): Promise<void> {
   const hhmm = time.replace(":", "");
-  const ACTION = "com.android.systemui.demo";
+  const adb = getAdbPath();
 
-  // Enable demo mode via settings
-  await adbExec(serial, ["shell", "settings", "put", "global", "sysui_demo_allowed", "1"]);
-  await sleep(300);
+  // Enable demo mode via both settings (covers old + new Android)
+  await run(adb, ["-s", serial, "shell", "settings", "put", "global", "sysui_demo_allowed", "1"]);
+  await run(adb, ["-s", serial, "shell", "settings", "put", "global", "sysui_tuner_demo_on", "1"]);
+  await sleep(500);
 
   // Enter demo mode
-  await adbExec(serial, ["shell", "am", "broadcast", "-a", ACTION, "-e", "command", "enter"]);
+  let result = await demoBroadcast(serial, "-e command enter");
+  process.stderr.write(`[demo] enter: ${result.trim()}\n`);
   await sleep(1000);
 
   // Set clock
-  await adbExec(serial, ["shell", "am", "broadcast", "-a", ACTION, "-e", "command", "clock", "-e", "hhmm", hhmm]);
+  result = await demoBroadcast(serial, `-e command clock -e hhmm ${hhmm}`);
+  process.stderr.write(`[demo] clock: ${result.trim()}\n`);
   await sleep(300);
 
   // Set wifi
-  await adbExec(serial, ["shell", "am", "broadcast", "-a", ACTION, "-e", "command", "network", "-e", "wifi", "show", "-e", "level", "4"]);
+  result = await demoBroadcast(serial, "-e command network -e wifi show -e level 4");
+  process.stderr.write(`[demo] wifi: ${result.trim()}\n`);
   await sleep(300);
 
   // Set mobile/cellular
-  await adbExec(serial, ["shell", "am", "broadcast", "-a", ACTION, "-e", "command", "network", "-e", "mobile", "show", "-e", "datatype", "none", "-e", "level", "4"]);
+  result = await demoBroadcast(serial, "-e command network -e mobile show -e datatype none -e level 4");
+  process.stderr.write(`[demo] mobile: ${result.trim()}\n`);
   await sleep(300);
 
   // Set battery
-  await adbExec(serial, ["shell", "am", "broadcast", "-a", ACTION, "-e", "command", "battery", "-e", "level", "100", "-e", "plugged", "false"]);
+  result = await demoBroadcast(serial, "-e command battery -e level 100 -e plugged false");
+  process.stderr.write(`[demo] battery: ${result.trim()}\n`);
   await sleep(300);
 
   // Hide notifications
-  await adbExec(serial, ["shell", "am", "broadcast", "-a", ACTION, "-e", "command", "notifications", "-e", "visible", "false"]);
+  result = await demoBroadcast(serial, "-e command notifications -e visible false");
+  process.stderr.write(`[demo] notif: ${result.trim()}\n`);
 
   // Wait for UI to render
   await sleep(1000);
 }
 
 export async function clearAndroidDemoMode(serial: string): Promise<void> {
-  await adbExec(serial, ["shell", "am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "exit"]);
+  await demoBroadcast(serial, "-e command exit");
+  const adb = getAdbPath();
+  await run(adb, ["-s", serial, "shell", "settings", "put", "global", "sysui_tuner_demo_on", "0"]);
 }
 
 export async function captureAndroidScreenshot(
