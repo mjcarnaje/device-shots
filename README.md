@@ -117,10 +117,10 @@ Screenshots are organized by platform and screen size bucket, matching App Store
 │   │   ├── dashboard_framed.png
 │   │   ├── settings.png
 │   │   └── settings_framed.png
-│   ├── 6.7/                          # iPhone 16 Plus, 15 Pro Max
+│   ├── 6.5/                          # iPhone 14 Plus, 13 Pro Max
 │   │   ├── dashboard.png
 │   │   └── dashboard_framed.png
-│   └── 6.3/                          # iPhone 16 Pro
+│   └── 6.3/                          # iPhone 16 Pro, 16, 15 Pro, 15
 │       └── ...
 ├── android/
 │   └── phone/                        # Pixel 9 Pro, etc.
@@ -135,14 +135,14 @@ Screenshots are organized by platform and screen size bucket, matching App Store
 
 | Bucket | Devices |
 |--------|---------|
-| `6.9` | iPhone 16 Pro Max |
-| `6.7` | iPhone 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max |
-| `6.5` | iPhone 14 Plus, 13 Pro Max, 12 Pro Max, 11 Pro Max |
-| `6.3` | iPhone 16 Pro |
-| `6.1` | iPhone 16, 15, 15 Pro, 14, 14 Pro, 13, 13 Pro |
+| `6.9` | iPhone 16 Pro Max, 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max |
+| `6.5` | iPhone 14 Plus, 13 Pro Max, 12 Pro Max, 11 Pro Max, XS Max |
+| `6.3` | iPhone 16 Pro, 16, 15 Pro, 15, 14 Pro |
+| `6.1` | iPhone 14, 13, 12, X, XS, 12 mini, 13 mini |
 | `5.5` | iPhone 8 Plus, 7 Plus |
-| `13` | iPad Pro 13" |
-| `11` | iPad Pro 11", iPad Air |
+| `4.7` | iPhone SE (3rd/2nd), iPhone 8 |
+| `13` | iPad Pro 13", iPad Air 13" |
+| `11` | iPad Pro 11", iPad Air 11", iPad mini 6th gen |
 
 **Android** — Categorized by form factor:
 
