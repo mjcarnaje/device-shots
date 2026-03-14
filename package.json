@@ -1,0 +1,47 @@
+{
+  "name": "device-shots",
+  "version": "0.1.0",
+  "description": "Capture and frame mobile app screenshots from iOS simulators and Android emulators",
+  "type": "module",
+  "bin": {
+    "device-shots": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "vendor"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "screenshot",
+    "mobile",
+    "ios",
+    "android",
+    "simulator",
+    "emulator",
+    "device-frame"
+  ],
+  "author": "mjcarnaje",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.1.0",
+    "cosmiconfig": "^9.0.0",
+    "execa": "^9.5.2",
+    "ora": "^8.2.0",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "@types/prompts": "^2.4.9",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

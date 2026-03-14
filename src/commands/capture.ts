@@ -1,0 +1,247 @@
+import { existsSync, mkdirSync, readdirSync, renameSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { mkdtempSync } from "node:fs";
+import ora from "ora";
+import pc from "picocolors";
+import prompts from "prompts";
+import type { CaptureOptions, CapturedFile, Config, DeviceInfo } from "../types.js";
+import { loadConfig } from "../config.js";
+import { discoverDevices } from "../devices/discover.js";
+import { setIosStatusBar, clearIosStatusBar, captureIosScreenshot } from "../devices/ios.js";
+import {
+  setAndroidDemoMode,
+  clearAndroidDemoMode,
+  captureAndroidScreenshot,
+  makeStatusBarTransparent,
+} from "../devices/android.js";
+import { frameAllIosScreenshots } from "../framing/frame.js";
+
+export async function captureCommand(options: CaptureOptions): Promise<void> {
+  const config = await loadConfig();
+
+  const bundleId = options.bundleId || config.bundleId;
+  if (!bundleId) {
+    console.error(
+      pc.red("Bundle ID is required. Use --bundle-id or set it in config.")
+    );
+    process.exit(1);
+  }
+
+  const outputDir = options.output || config.output;
+  const platform = options.platform || config.platform;
+  const time = options.time || config.time;
+  const shouldFrame = !options.noFrame && config.frame;
+
+  // Discover devices
+  const spinner = ora("Discovering devices...").start();
+  const devices = await discoverDevices(bundleId, platform);
+  spinner.stop();
+
+  if (devices.length === 0) {
+    console.error(pc.red(`No devices found with ${bundleId} installed.`));
+    console.error("Start a simulator/emulator and install the app first.");
+    process.exit(1);
+  }
+
+  // Show detected devices
+  console.log(
+    pc.bold(`\nDetected ${devices.length} device(s) with ${bundleId}:`)
+  );
+  for (const device of devices) {
+    const deviceDir = join(outputDir, device.platform, device.safeName);
+    const rawDir = join(deviceDir, "raw");
+    if (existsSync(rawDir)) {
+      const count = readdirSync(rawDir).filter((f) =>
+        f.endsWith(".png")
+      ).length;
+      console.log(
+        `  ${pc.dim(device.platform + "/")}${device.safeName} (${device.displayName}) - ${count} screenshot(s)`
+      );
+    } else {
+      console.log(
+        `  ${pc.dim(device.platform + "/")}${device.safeName} (${device.displayName}) - ${pc.green("new")}`
+      );
+    }
+  }
+
+  // Show existing screenshots
+  const existingNames = getExistingScreenshotNames(outputDir, devices);
+  if (existingNames.length > 0) {
+    console.log(pc.dim("\nExisting screenshots:"));
+    for (const name of existingNames) {
+      console.log(pc.dim(`  - ${name}`));
+    }
+  }
+
+  // Get screenshot name
+  let screenshotName = options.name;
+  if (!screenshotName) {
+    const response = await prompts({
+      type: "text",
+      name: "name",
+      message: "Screenshot name (e.g. dashboard, sales-report)",
+    });
+
+    if (!response.name) {
+      console.log("No name provided. Aborting.");
+      process.exit(1);
+    }
+    screenshotName = response.name;
+  }
+
+  // Sanitize name
+  screenshotName = screenshotName!
+    .replace(/ /g, "-")
+    .replace(/[^A-Za-z0-9_-]/g, "");
+
+  // Check for duplicates
+  const firstDevice = devices[0];
+  const existingFile = join(
+    outputDir,
+    firstDevice.platform,
+    firstDevice.safeName,
+    "raw",
+    `${screenshotName}_${firstDevice.safeName}.png`
+  );
+
+  if (existsSync(existingFile)) {
+    const response = await prompts({
+      type: "confirm",
+      name: "overwrite",
+      message: `Screenshot '${screenshotName}' already exists. Overwrite?`,
+      initial: false,
+    });
+
+    if (!response.overwrite) {
+      console.log("Aborting.");
+      process.exit(0);
+    }
+  }
+
+  // Create temp directory
+  const tmpDir = mkdtempSync(join(tmpdir(), "device-shots-"));
+
+  // Set clean status bars
+  const iosDevices = devices.filter((d) => d.platform === "ios");
+  const androidDevices = devices.filter((d) => d.platform === "android");
+
+  if (iosDevices.length > 0) {
+    const s = ora("Setting clean iOS status bar...").start();
+    await setIosStatusBar(time);
+    s.succeed("iOS status bar set");
+  }
+
+  if (androidDevices.length > 0) {
+    const s = ora("Setting clean Android status bar...").start();
+    for (const device of androidDevices) {
+      await setAndroidDemoMode(device.captureId, time);
+    }
+    s.succeed("Android demo mode set");
+  }
+
+  // Capture screenshots
+  console.log("");
+  const captured: CapturedFile[] = [];
+
+  for (const device of devices) {
+    const filename = `${screenshotName}_${device.safeName}.png`;
+    const tmpPath = join(tmpDir, filename);
+    const icon = device.platform === "ios" ? "iOS" : "Android";
+    const s = ora(`${icon}: Capturing from ${device.displayName}...`).start();
+
+    let success = false;
+    if (device.platform === "ios") {
+      success = await captureIosScreenshot(device.captureId, tmpPath);
+    } else {
+      success = await captureAndroidScreenshot(device.captureId, tmpPath);
+      if (success) {
+        const transparent = await makeStatusBarTransparent(
+          device.captureId,
+          tmpPath
+        );
+        if (transparent) {
+          s.text = `${icon}: Captured from ${device.displayName} (status bar transparent)`;
+        }
+      }
+    }
+
+    if (success) {
+      captured.push({
+        platform: device.platform,
+        safeName: device.safeName,
+        filename,
+        tmpPath,
+      });
+      s.succeed(`${icon}: ${device.displayName}`);
+    } else {
+      s.fail(`${icon}: Failed to capture from ${device.displayName}`);
+    }
+  }
+
+  // Move screenshots to output directory
+  for (const file of captured) {
+    const destDir = join(outputDir, file.platform, file.safeName, "raw");
+    mkdirSync(destDir, { recursive: true });
+
+    if (file.platform === "ios") {
+      mkdirSync(join(outputDir, file.platform, file.safeName, "framed"), {
+        recursive: true,
+      });
+    }
+
+    renameSync(file.tmpPath, join(destDir, file.filename));
+  }
+
+  // Restore status bars
+  if (iosDevices.length > 0) {
+    await clearIosStatusBar();
+  }
+  for (const device of androidDevices) {
+    await clearAndroidDemoMode(device.captureId);
+  }
+
+  console.log(
+    pc.green(
+      `\nCaptured ${captured.length} screenshot(s) as '${screenshotName}'.`
+    )
+  );
+
+  // Frame iOS screenshots
+  if (shouldFrame && iosDevices.length > 0) {
+    console.log("");
+    const s = ora("Framing iOS screenshots...").start();
+    try {
+      const framed = await frameAllIosScreenshots(outputDir);
+      s.succeed(`Framed ${framed} screenshot(s)`);
+    } catch (error) {
+      s.fail(
+        `Framing failed: ${error instanceof Error ? error.message : error}`
+      );
+    }
+  }
+}
+
+function getExistingScreenshotNames(
+  outputDir: string,
+  devices: DeviceInfo[]
+): string[] {
+  const names = new Set<string>();
+
+  for (const device of devices) {
+    const rawDir = join(outputDir, device.platform, device.safeName, "raw");
+    if (!existsSync(rawDir)) continue;
+
+    for (const file of readdirSync(rawDir)) {
+      if (!file.endsWith(".png")) continue;
+      // Strip device suffix: "name_DeviceName.png" -> "name"
+      const base = file.replace(".png", "");
+      const suffix = `_${device.safeName}`;
+      if (base.endsWith(suffix)) {
+        names.add(base.slice(0, -suffix.length));
+      }
+    }
+  }
+
+  return [...names].sort();
+}
