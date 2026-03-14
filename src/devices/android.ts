@@ -91,42 +91,73 @@ export async function discoverAndroidDevices(
   return devices;
 }
 
+async function adbShell(serial: string, cmd: string): Promise<string> {
+  const adb = getAdbPath();
+  const { stdout, stderr } = await run(adb, ["-s", serial, "shell", cmd]);
+  return stdout || stderr;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function setAndroidDemoMode(
   serial: string,
   time: string = "9:30"
 ): Promise<void> {
-  const adb = getAdbPath();
   const hhmm = time.replace(":", "");
 
-  const commands = [
-    ["settings", "put", "global", "sysui_demo_allowed", "1"],
-    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "enter"],
-    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "clock", "-e", "hhmm", hhmm],
-    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "wifi", "-e", "fully", "true", "-e", "wifi", "show"],
-    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "network", "-e", "mobile", "show", "-e", "fully", "true", "-e", "level", "4"],
-    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "battery", "-e", "level", "100", "-e", "plugged", "false"],
-    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "notifications", "-e", "visible", "false"],
-  ];
+  // Enable demo mode
+  await adbShell(serial, "settings put global sysui_demo_allowed 1");
 
-  for (const cmd of commands) {
-    await run(adb, ["-s", serial, "shell", ...cmd]);
-  }
+  // Enter demo mode
+  await adbShell(
+    serial,
+    "am broadcast -a com.android.systemui.demo -e command enter"
+  );
+
+  // Small delay to let demo mode activate
+  await sleep(500);
+
+  // Set clock
+  await adbShell(
+    serial,
+    `am broadcast -a com.android.systemui.demo -e command clock -e hhmm ${hhmm}`
+  );
+
+  // Set wifi
+  await adbShell(
+    serial,
+    "am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4"
+  );
+
+  // Set mobile/cellular
+  await adbShell(
+    serial,
+    "am broadcast -a com.android.systemui.demo -e command network -e mobile show -e datatype none -e level 4"
+  );
+
+  // Set battery
+  await adbShell(
+    serial,
+    "am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false"
+  );
+
+  // Hide notifications
+  await adbShell(
+    serial,
+    "am broadcast -a com.android.systemui.demo -e command notifications -e visible false"
+  );
+
+  // Wait for all changes to render
+  await sleep(500);
 }
 
 export async function clearAndroidDemoMode(serial: string): Promise<void> {
-  const adb = getAdbPath();
-  await run(adb, [
-    "-s",
+  await adbShell(
     serial,
-    "shell",
-    "am",
-    "broadcast",
-    "-a",
-    "com.android.systemui.demo",
-    "-e",
-    "command",
-    "exit",
-  ]);
+    "am broadcast -a com.android.systemui.demo -e command exit"
+  );
 }
 
 export async function captureAndroidScreenshot(
@@ -145,4 +176,3 @@ export async function captureAndroidScreenshot(
     return false;
   }
 }
-
