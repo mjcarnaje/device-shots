@@ -4,7 +4,7 @@
   "description": "Capture and frame mobile app screenshots from iOS simulators and Android emulators",
   "type": "module",
   "bin": {
-    "device-shots": "./dist/index.js"
+    "device-shots": "dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [
