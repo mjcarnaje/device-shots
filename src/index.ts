@@ -13,7 +13,7 @@ program
   .description(
     "Capture and frame mobile app screenshots from iOS simulators and Android emulators"
   )
-  .version("0.3.0");
+  .version("0.4.0");
 
 program
   .command("capture")
@@ -30,7 +30,7 @@ program
 
 program
   .command("frame")
-  .description("Frame existing iOS screenshots with device bezels")
+  .description("Frame existing screenshots with device bezels or borders")
   .argument("[dir]", "Screenshots directory")
   .option("-i, --input <dir>", "Screenshots directory")
   .option("-f, --force", "Re-frame existing screenshots")
@@ -49,18 +49,28 @@ program
       return;
     }
 
-    const response = await prompts({
-      type: "text",
-      name: "bundleId",
-      message: "App bundle ID (e.g. com.example.myapp)",
-    });
+    const response = await prompts([
+      {
+        type: "text",
+        name: "bundleId",
+        message: "Production bundle ID (e.g. com.example.myapp)",
+      },
+      {
+        type: "text",
+        name: "devBundleId",
+        message: "Dev bundle ID (leave empty to skip)",
+      },
+    ]);
 
     if (!response.bundleId) {
       console.log("Aborting.");
       return;
     }
 
-    const config = createDefaultConfig(response.bundleId);
+    const bundleId = response.devBundleId
+      ? [response.bundleId, response.devBundleId]
+      : response.bundleId;
+    const config = createDefaultConfig(bundleId);
     writeFileSync(configPath, config + "\n");
     console.log(pc.green(`Created ${configPath}`));
   });

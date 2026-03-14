@@ -38,13 +38,18 @@ import { frameAllIosScreenshots, frameAllAndroidScreenshots } from "../framing/f
 export async function captureCommand(options: CaptureOptions): Promise<void> {
   const config = await loadConfig();
 
-  const bundleId = options.bundleId || config.bundleId;
-  if (!bundleId) {
+  // CLI --bundle-id is a single string; config can be string or string[]
+  const bundleId: string | string[] = options.bundleId || config.bundleId;
+  if (!bundleId || (Array.isArray(bundleId) && bundleId.length === 0)) {
     console.error(
       pc.red("Bundle ID is required. Use --bundle-id or set it in config.")
     );
     process.exit(1);
   }
+
+  const bundleIdDisplay = Array.isArray(bundleId)
+    ? bundleId.join(", ")
+    : bundleId;
 
   const outputDir = options.output || config.output;
   const platform = options.platform || config.platform;
@@ -57,14 +62,14 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
   spinner.stop();
 
   if (devices.length === 0) {
-    console.error(pc.red(`No devices found with ${bundleId} installed.`));
+    console.error(pc.red(`No devices found with ${bundleIdDisplay} installed.`));
     console.error("Start a simulator/emulator and install the app first.");
     process.exit(1);
   }
 
   // Show detected devices
   console.log(
-    pc.bold(`\nDetected ${devices.length} device(s) with ${bundleId}:`)
+    pc.bold(`\nDetected ${devices.length} device(s) with ${bundleIdDisplay}:`)
   );
   for (const device of devices) {
     const sizeDir = join(outputDir, device.platform, device.screenSize);

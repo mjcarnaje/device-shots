@@ -26,7 +26,7 @@ export interface DeviceMetaEntry {
 }
 
 export interface Config {
-  bundleId: string;
+  bundleId: string | string[];
   output: string;
   platform: "ios" | "android" | "both";
   time: string;

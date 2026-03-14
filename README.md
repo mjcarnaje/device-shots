@@ -84,15 +84,23 @@ device-shots frame --force
 device-shots init
 ```
 
-Creates a `.device-shotsrc.json` in the current directory so you don't have to pass `--bundle-id` every time:
+Creates a `.device-shotsrc.json` in the current directory so you don't have to pass `--bundle-id` every time. It will ask for both production and dev bundle IDs:
 
 ```json
 {
-  "bundleId": "com.example.myapp",
+  "bundleId": ["com.example.myapp", "com.example.myapp.dev"],
   "output": "./.screenshots",
   "platform": "both",
   "time": "9:41",
   "frame": true
+}
+```
+
+A single string also works if you only have one bundle ID:
+
+```json
+{
+  "bundleId": "com.example.myapp"
 }
 ```
 
@@ -105,6 +113,20 @@ The tool uses [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig), so you 
 - `.device-shotsrc.js`
 - `device-shots.config.js`
 - `"device-shots"` key in `package.json`
+
+## Multiple bundle IDs
+
+Most apps have separate bundle IDs for production and development builds. You can pass an array to `bundleId` in the config:
+
+```json
+{
+  "bundleId": ["com.example.myapp", "com.example.myapp.dev"]
+}
+```
+
+During discovery, the tool tries each bundle ID on every running device and captures from whichever build is installed. This means it works regardless of whether you have the dev or production build running.
+
+The CLI `--bundle-id` flag accepts a single ID for quick one-off captures.
 
 ## Output structure
 

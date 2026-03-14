@@ -26,7 +26,7 @@ export async function loadConfig(): Promise<Config> {
   return DEFAULTS;
 }
 
-export function createDefaultConfig(bundleId: string): string {
+export function createDefaultConfig(bundleId: string | string[]): string {
   return JSON.stringify(
     {
       bundleId,
