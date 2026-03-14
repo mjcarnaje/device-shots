@@ -93,7 +93,7 @@ export async function discoverAndroidDevices(
 
 export async function setAndroidDemoMode(
   serial: string,
-  time: string
+  time: string = "9:30"
 ): Promise<void> {
   const adb = getAdbPath();
   const hhmm = time.replace(":", "");

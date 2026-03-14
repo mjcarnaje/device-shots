@@ -30,6 +30,7 @@ export interface Config {
   output: string;
   platform: "ios" | "android" | "both";
   time: string;
+  androidTime: string;
   frame: boolean;
 }
 

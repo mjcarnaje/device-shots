@@ -8,6 +8,7 @@ const DEFAULTS: Config = {
   output: "./.screenshots",
   platform: "both",
   time: "9:41",
+  androidTime: "9:30",
   frame: true,
 };
 
@@ -33,6 +34,7 @@ export function createDefaultConfig(bundleId: string | string[]): string {
       output: "./.screenshots",
       platform: "both",
       time: "9:41",
+      androidTime: "9:30",
       frame: true,
     },
     null,

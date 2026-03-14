@@ -53,7 +53,8 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
 
   const outputDir = options.output || config.output;
   const platform = options.platform || config.platform;
-  const time = options.time || config.time;
+  const iosTime = options.time || config.time;
+  const androidTime = config.androidTime;
   const shouldFrame = !options.noFrame && config.frame;
 
   // Discover devices
@@ -149,14 +150,14 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
 
   if (iosDevices.length > 0) {
     const s = ora("Setting clean iOS status bar...").start();
-    await setIosStatusBar(time);
+    await setIosStatusBar(iosTime);
     s.succeed("iOS status bar set");
   }
 
   if (androidDevices.length > 0) {
     const s = ora("Setting clean Android status bar...").start();
     for (const device of androidDevices) {
-      await setAndroidDemoMode(device.captureId, time);
+      await setAndroidDemoMode(device.captureId, androidTime);
     }
     s.succeed("Android demo mode set");
   }
