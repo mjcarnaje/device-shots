@@ -102,7 +102,8 @@ export async function setAndroidDemoMode(
     ["settings", "put", "global", "sysui_demo_allowed", "1"],
     ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "enter"],
     ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "clock", "-e", "hhmm", hhmm],
-    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "wifi", "-e", "fully", "true"],
+    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "wifi", "-e", "fully", "true", "-e", "wifi", "show"],
+    ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "network", "-e", "mobile", "show", "-e", "fully", "true", "-e", "level", "4"],
     ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "battery", "-e", "level", "100", "-e", "plugged", "false"],
     ["am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "notifications", "-e", "visible", "false"],
   ];
