@@ -232,11 +232,12 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
     await clearAndroidDemoMode(device.captureId);
   }
 
-  console.log(
-    pc.green(
-      `\nCaptured ${captured.length} screenshot(s) as '${screenshotName}'.`
-    )
-  );
+  const skippedDupes = captured.length - movedBuckets.size;
+  let msg = `\nCaptured ${movedBuckets.size} screenshot(s) as '${screenshotName}'.`;
+  if (skippedDupes > 0) {
+    msg += ` (${skippedDupes} duplicate bucket(s) skipped)`;
+  }
+  console.log(pc.green(msg));
 
   // Frame screenshots
   if (shouldFrame) {

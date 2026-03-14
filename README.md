@@ -208,17 +208,17 @@ Both platforms get framed automatically after capture (disable with `--no-frame`
 
 Uses [device-frames-core](https://pypi.org/project/device-frames-core/) to wrap screenshots in realistic Apple device frames (iPhone, iPad). The device model is auto-detected from the screenshot resolution. Requires Python 3 (venv is managed automatically).
 
-### Android — Black border with rounded corners
+### Android — Black frame with rounded corners
 
-Uses ImageMagick to add a black bezel-like border with rounded corners. Dimensions scale proportionally to the screenshot:
+Uses ImageMagick to clip the screenshot to rounded corners (overflow hidden) and place it on a black rounded rectangle with uniform padding on all sides. Dimensions scale proportionally to the screenshot:
 
 | Property | Value |
 |----------|-------|
-| Border width | ~1.8% of image width |
-| Inner corner radius | ~4.5% of image width |
-| Outer corner radius | inner radius + border width |
+| Padding | ~2.5% of image width (equal on all sides) |
+| Inner corner radius | ~4% of image width |
+| Outer corner radius | inner radius + padding |
 
-For a 1080px wide screenshot, this produces a ~19px border with ~49px rounded corners.
+For a 1080px wide screenshot, this produces ~27px padding with ~43px inner rounded corners.
 
 ## License
 

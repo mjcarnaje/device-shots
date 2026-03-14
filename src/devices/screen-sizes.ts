@@ -67,7 +67,11 @@ export function getAndroidScreenSize(
   height: number
 ): string {
   const shorter = Math.min(width, height);
+  const longer = Math.max(width, height);
+  const ratio = longer / shorter;
 
+  // Phones have tall aspect ratios (>= 1.7), tablets are squarer (< 1.7)
+  if (ratio >= 1.7) return "phone";
   if (shorter >= 1800) return "tablet-10";
   if (shorter >= 1200) return "tablet-7";
   return "phone";

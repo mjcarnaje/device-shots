@@ -13,7 +13,7 @@ program
   .description(
     "Capture and frame mobile app screenshots from iOS simulators and Android emulators"
   )
-  .version("0.4.1");
+  .version("0.4.2");
 
 program
   .command("capture")

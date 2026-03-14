@@ -51,11 +51,12 @@ export async function frameScreenshots(
 }
 
 /**
- * Frame a single Android screenshot with a black border and rounded corners.
+ * Frame a single Android screenshot with uniform black padding and
+ * rounded corners on both the screenshot and outer frame.
  *
- * Uses ImageMagick to:
- * 1. Round the screenshot corners (inner radius)
- * 2. Place it on a black rounded rectangle (outer radius)
+ * The screenshot is clipped to rounded corners (overflow hidden),
+ * then placed on a black rounded rectangle with equal padding on
+ * all four sides.
  */
 export async function frameAndroidScreenshot(
   inputPath: string,
@@ -78,19 +79,19 @@ export async function frameAndroidScreenshot(
   const width = parseInt(match[1], 10);
   const height = parseInt(match[2], 10);
 
-  // Scale border and radius proportional to image width
-  const borderWidth = Math.round(width * 0.018);
-  const innerRadius = Math.round(width * 0.045);
-  const outerRadius = innerRadius + borderWidth;
-  const totalW = width + borderWidth * 2;
-  const totalH = height + borderWidth * 2;
+  // Uniform padding and corner radius, proportional to image width
+  const padding = Math.round(width * 0.025);
+  const innerRadius = Math.round(width * 0.04);
+  const outerRadius = innerRadius + padding;
+  const totalW = width + padding * 2;
+  const totalH = height + padding * 2;
 
   try {
     await runOrFail("magick", [
-      // Create black rounded rectangle background
+      // 1. Create black rounded rectangle background (outer frame)
       "-size", `${totalW}x${totalH}`, "xc:none",
       "-draw", `fill black roundrectangle 0,0 ${totalW - 1},${totalH - 1} ${outerRadius},${outerRadius}`,
-      // Load screenshot and round its corners
+      // 2. Load screenshot and clip to rounded corners (overflow hidden)
       "(",
         inputPath,
         "-alpha", "set",
@@ -101,7 +102,7 @@ export async function frameAndroidScreenshot(
         ")",
         "-compose", "DstIn", "-composite",
       ")",
-      // Composite screenshot centered on black background
+      // 3. Place rounded screenshot centered on the black frame
       "-gravity", "center",
       "-compose", "Over",
       "-composite",
