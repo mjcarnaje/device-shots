@@ -2,7 +2,8 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
-  renameSync,
+  copyFileSync,
+  unlinkSync,
   readFileSync,
   writeFileSync,
 } from "node:fs";
@@ -167,7 +168,7 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
 
   for (const device of devices) {
     const filename = `${screenshotName}.png`;
-    const tmpPath = join(tmpDir, `${device.platform}_${device.screenSize}_${filename}`);
+    const tmpPath = join(tmpDir, `${device.platform}_${device.screenSize}_${device.safeName}_${filename}`);
     const icon = device.platform === "ios" ? "iOS" : "Android";
     const s = ora(
       `${icon}: Capturing from ${device.displayName}...`
@@ -203,10 +204,21 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
   }
 
   // Move screenshots to output directory
+  // When multiple devices share a screen size bucket, only keep the first
+  const movedBuckets = new Set<string>();
   for (const file of captured) {
+    const bucketKey = `${file.platform}/${file.screenSize}`;
+    if (movedBuckets.has(bucketKey)) {
+      try { unlinkSync(file.tmpPath); } catch {}
+      continue;
+    }
+    movedBuckets.add(bucketKey);
+
     const destDir = join(outputDir, file.platform, file.screenSize);
     mkdirSync(destDir, { recursive: true });
-    renameSync(file.tmpPath, join(destDir, file.filename));
+    const destPath = join(destDir, file.filename);
+    copyFileSync(file.tmpPath, destPath);
+    try { unlinkSync(file.tmpPath); } catch {}
   }
 
   // Update metadata.json
