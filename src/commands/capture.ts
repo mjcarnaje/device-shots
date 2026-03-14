@@ -32,7 +32,6 @@ import {
   setAndroidDemoMode,
   clearAndroidDemoMode,
   captureAndroidScreenshot,
-  makeStatusBarTransparent,
 } from "../devices/android.js";
 import { frameAllIosScreenshots, frameAllAndroidScreenshots } from "../framing/frame.js";
 
@@ -179,15 +178,6 @@ export async function captureCommand(options: CaptureOptions): Promise<void> {
       success = await captureIosScreenshot(device.captureId, tmpPath);
     } else {
       success = await captureAndroidScreenshot(device.captureId, tmpPath);
-      if (success) {
-        const transparent = await makeStatusBarTransparent(
-          device.captureId,
-          tmpPath
-        );
-        if (transparent) {
-          s.text = `${icon}: Captured from ${device.displayName} (status bar transparent)`;
-        }
-      }
     }
 
     if (success) {

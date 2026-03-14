@@ -7,10 +7,9 @@ A CLI tool that captures screenshots from running iOS simulators and Android emu
 1. **Discovers devices** — Finds all running iOS simulators and Android emulators that have your app installed
 2. **Cleans up status bars** — Sets a uniform status bar (9:41, full battery, full signal) on all devices before capturing
 3. **Captures screenshots** — Takes screenshots from every discovered device in one go
-4. **Transparent Android status bar** — Automatically makes the Android status bar area transparent using ImageMagick
-5. **Frames iOS screenshots** — Wraps iOS screenshots in device bezels (iPhone/iPad frames) using [device-frames-core](https://pypi.org/project/device-frames-core/)
-6. **Frames Android screenshots** — Adds a black border with rounded corners for a clean device-like look (requires ImageMagick)
-7. **Organizes by screen size** — Saves screenshots into store-aligned size buckets (e.g. `6.9`, `6.3`, `phone`) instead of device names
+4. **Frames iOS screenshots** — Wraps iOS screenshots in device bezels (iPhone/iPad frames) using [device-frames-core](https://pypi.org/project/device-frames-core/)
+5. **Frames Android screenshots** — Adds uniform black padding with matching rounded corners on both the screenshot and frame (requires ImageMagick)
+6. **Organizes by screen size** — Saves screenshots into store-aligned size buckets (e.g. `6.9`, `6.3`, `phone`) instead of device names
 
 ## Use cases
 
@@ -29,7 +28,7 @@ A CLI tool that captures screenshots from running iOS simulators and Android emu
 
 ### Optional
 
-- **ImageMagick** — needed for Android status bar transparency and Android framing (black border + rounded corners). Install with `brew install imagemagick`
+- **ImageMagick** — needed for Android screenshot framing (black border + rounded corners). Install with `brew install imagemagick`
 - **Python 3** — needed for iOS screenshot framing with device bezels. The tool auto-creates a virtual environment at `~/.device-shots/.venv` and installs `device-frames-core` and `Pillow` automatically on first use
 
 ## Install
@@ -210,15 +209,14 @@ Uses [device-frames-core](https://pypi.org/project/device-frames-core/) to wrap 
 
 ### Android — Black frame with rounded corners
 
-Uses ImageMagick to clip the screenshot to rounded corners (overflow hidden) and place it on a black rounded rectangle with uniform padding on all sides. Dimensions scale proportionally to the screenshot:
+Uses ImageMagick to clip the screenshot to rounded corners (overflow hidden) and place it on a black rounded rectangle with uniform padding on all sides. The screenshot and frame share the same border radius. Dimensions scale proportionally:
 
 | Property | Value |
 |----------|-------|
 | Padding | ~2.5% of image width (equal on all sides) |
-| Inner corner radius | ~4% of image width |
-| Outer corner radius | inner radius + padding |
+| Border radius | ~4% of image width (same for screenshot and frame) |
 
-For a 1080px wide screenshot, this produces ~27px padding with ~43px inner rounded corners.
+For a 1080px wide screenshot, this produces ~27px uniform padding with ~43px rounded corners.
 
 ## License
 

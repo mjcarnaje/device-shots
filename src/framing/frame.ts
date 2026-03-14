@@ -52,11 +52,11 @@ export async function frameScreenshots(
 
 /**
  * Frame a single Android screenshot with uniform black padding and
- * rounded corners on both the screenshot and outer frame.
+ * rounded corners.
  *
+ * Both the screenshot and the outer frame use the same border radius.
  * The screenshot is clipped to rounded corners (overflow hidden),
- * then placed on a black rounded rectangle with equal padding on
- * all four sides.
+ * then placed on a black rounded-rect background with equal padding.
  */
 export async function frameAndroidScreenshot(
   inputPath: string,
@@ -79,35 +79,44 @@ export async function frameAndroidScreenshot(
   const width = parseInt(match[1], 10);
   const height = parseInt(match[2], 10);
 
-  // Uniform padding and corner radius, proportional to image width
+  // Same radius for screenshot and frame, uniform padding
   const padding = Math.round(width * 0.025);
-  const innerRadius = Math.round(width * 0.04);
-  const outerRadius = innerRadius + padding;
+  const radius = Math.round(width * 0.04);
   const totalW = width + padding * 2;
   const totalH = height + padding * 2;
 
   try {
+    // Step 1: Clip screenshot to rounded corners
+    const tmpRounded = inputPath.replace(".png", "_rounded_tmp.png");
     await runOrFail("magick", [
-      // 1. Create black rounded rectangle background (outer frame)
-      "-size", `${totalW}x${totalH}`, "xc:none",
-      "-draw", `fill black roundrectangle 0,0 ${totalW - 1},${totalH - 1} ${outerRadius},${outerRadius}`,
-      // 2. Load screenshot and clip to rounded corners (overflow hidden)
-      "(",
-        inputPath,
-        "-alpha", "set",
-        "(", "+clone",
-          "-alpha", "extract",
-          "-draw", `fill black color 0,0 reset`,
-          "-draw", `fill white roundrectangle 0,0 ${width - 1},${height - 1} ${innerRadius},${innerRadius}`,
-        ")",
-        "-compose", "DstIn", "-composite",
+      inputPath,
+      "-alpha", "set",
+      "(", "+clone",
+        "-alpha", "extract",
+        "-draw", `fill black color 0,0 reset`,
+        "-draw", `fill white roundrectangle 0,0 ${width - 1},${height - 1} ${radius},${radius}`,
       ")",
-      // 3. Place rounded screenshot centered on the black frame
+      "-compose", "DstIn", "-composite",
+      tmpRounded,
+    ]);
+
+    // Step 2: Create black rounded-rect background and composite
+    await runOrFail("magick", [
+      "-size", `${totalW}x${totalH}`, "xc:none",
+      "-draw", `fill black roundrectangle 0,0 ${totalW - 1},${totalH - 1} ${radius},${radius}`,
+      tmpRounded,
       "-gravity", "center",
       "-compose", "Over",
       "-composite",
       outputPath,
     ]);
+
+    // Clean up temp file
+    try {
+      const { unlinkSync } = await import("node:fs");
+      unlinkSync(tmpRounded);
+    } catch {}
+
     return true;
   } catch {
     return false;

@@ -1,10 +1,10 @@
 import { Command } from "commander";
-import { writeFileSync, existsSync } from "node:fs";
+import { writeFileSync, existsSync, rmSync } from "node:fs";
 import pc from "picocolors";
 import prompts from "prompts";
 import { captureCommand } from "./commands/capture.js";
 import { frameCommand } from "./commands/frame.js";
-import { createDefaultConfig } from "./config.js";
+import { createDefaultConfig, loadConfig } from "./config.js";
 
 const program = new Command();
 
@@ -13,7 +13,7 @@ program
   .description(
     "Capture and frame mobile app screenshots from iOS simulators and Android emulators"
   )
-  .version("0.4.2");
+  .version("0.5.0");
 
 program
   .command("capture")
@@ -73,6 +73,38 @@ program
     const config = createDefaultConfig(bundleId);
     writeFileSync(configPath, config + "\n");
     console.log(pc.green(`Created ${configPath}`));
+  });
+
+program
+  .command("clean")
+  .description("Delete all screenshots and metadata")
+  .option("-o, --output <dir>", "Screenshots directory to clean")
+  .option("-y, --yes", "Skip confirmation")
+  .action(async (opts) => {
+    const config = await loadConfig();
+    const outputDir = opts.output || config.output;
+
+    if (!existsSync(outputDir)) {
+      console.log(pc.dim(`Nothing to clean — ${outputDir} does not exist.`));
+      return;
+    }
+
+    if (!opts.yes) {
+      const response = await prompts({
+        type: "confirm",
+        name: "confirm",
+        message: `Delete everything in ${outputDir}?`,
+        initial: false,
+      });
+
+      if (!response.confirm) {
+        console.log("Aborting.");
+        return;
+      }
+    }
+
+    rmSync(outputDir, { recursive: true, force: true });
+    console.log(pc.green(`Cleaned ${outputDir}`));
   });
 
 program.parse();
