@@ -86,8 +86,9 @@ export async function frameAndroidScreenshot(
   const height = parseInt(match[2], 10);
 
   // Fixed pixel values so all device sizes look consistent
-  const padding = 40;
-  const radius = 70;
+  const padding = 30;
+  const innerRadius = 60;
+  const outerRadius = innerRadius + padding;
   const totalW = width + padding * 2;
   const totalH = height + padding * 2;
 
@@ -101,7 +102,7 @@ export async function frameAndroidScreenshot(
       "-size", `${width}x${height}`,
       "xc:black",
       "-fill", "white",
-      "-draw", `roundrectangle 0,0 ${width - 1},${height - 1} ${radius},${radius}`,
+      "-draw", `roundrectangle 0,0 ${width - 1},${height - 1} ${innerRadius},${innerRadius}`,
       tmpMask,
     ]);
 
@@ -120,7 +121,7 @@ export async function frameAndroidScreenshot(
       "-size", `${totalW}x${totalH}`,
       "xc:none",
       "-fill", "black",
-      "-draw", `roundrectangle 0,0 ${totalW - 1},${totalH - 1} ${radius},${radius}`,
+      "-draw", `roundrectangle 0,0 ${totalW - 1},${totalH - 1} ${outerRadius},${outerRadius}`,
       tmpRounded,
       "-gravity", "center",
       "-compose", "Over",
