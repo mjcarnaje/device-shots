@@ -62,17 +62,46 @@ export function getIosScreenSize(width: number, height: number): string {
   return IOS_RESOLUTION_MAP[`${w}x${h}`] ?? `${w}x${h}`;
 }
 
+// Map "widthxheight" (portrait) -> Play Store display category
+const ANDROID_RESOLUTION_MAP: Record<string, string> = {
+  // Phones — Pixel series
+  "1080x2400": "phone", // Pixel 9, 8, 7, 6
+  "1344x2992": "phone", // Pixel 8 Pro, Pixel 9 Pro XL
+  "1280x2856": "phone", // Pixel 9 Pro
+  "1440x3120": "phone", // Pixel 7 Pro, 6 Pro, Samsung Galaxy S24 Ultra
+  "1080x2340": "phone", // Pixel 5, Samsung Galaxy S24, S23
+  "1080x2310": "phone", // Pixel 4a, 5a
+  "1080x2280": "phone", // Pixel 4
+  "1080x1920": "phone", // Pixel (1st gen), Nexus 5X, many older phones
+
+  // Phones — Samsung Galaxy series
+  "1440x3200": "phone", // Samsung Galaxy S22 Ultra, S21 Ultra
+  "1440x2960": "phone", // Samsung Galaxy S9, S8
+
+  // 7" tablets
+  "1200x1920": "tablet-7", // Nexus 7 (2013), Android Studio "Medium Tablet" AVD
+  "800x1280": "tablet-7", // Nexus 7 (2012)
+
+  // 10" tablets
+  "1600x2560": "tablet-10", // Pixel Tablet, Samsung Galaxy Tab S series
+  "1200x2000": "tablet-10", // Samsung Galaxy Tab A8
+};
+
 export function getAndroidScreenSize(
   width: number,
   height: number
 ): string {
-  const shorter = Math.min(width, height);
-  const longer = Math.max(width, height);
-  const ratio = longer / shorter;
+  // Always use portrait orientation (smaller dimension first)
+  const w = Math.min(width, height);
+  const h = Math.max(width, height);
 
-  // Phones have tall aspect ratios (>= 1.7), tablets are squarer (< 1.7)
+  const mapped = ANDROID_RESOLUTION_MAP[`${w}x${h}`];
+  if (mapped) return mapped;
+
+  // Fallback: classify by aspect ratio and shorter dimension
+  const ratio = h / w;
   if (ratio >= 1.7) return "phone";
-  if (shorter >= 1500) return "tablet-10";
-  if (shorter >= 1200) return "tablet-7";
+  if (w >= 1500) return "tablet-10";
+  if (w >= 1200) return "tablet-7";
   return "phone";
 }
