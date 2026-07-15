@@ -1,8 +1,32 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandExists, run, runOrFail } from "../exec.js";
 import { ensureVenv, getVenvPython } from "./setup.js";
+
+/** Machine-readable summary line emitted by vendor/frame.py. */
+const RESULT_PREFIX = "__DEVICE_SHOTS_RESULT__";
+
+export interface FrameResult {
+  framed: number;
+  skipped: number;
+  failed: number;
+}
+
+/**
+ * True if inputPath has no current framed output.
+ *
+ * A framed file that merely exists may be stale: `capture` overwrites raw
+ * screenshots in place, so compare mtimes rather than trusting existence.
+ */
+function needsFraming(
+  inputPath: string,
+  outputPath: string,
+  force: boolean
+): boolean {
+  if (force || !existsSync(outputPath)) return true;
+  return statSync(inputPath).mtimeMs > statSync(outputPath).mtimeMs;
+}
 
 function getFramePyPath(): string {
   const thisDir = dirname(fileURLToPath(import.meta.url));
@@ -24,7 +48,7 @@ export async function frameScreenshots(
   inputDir: string,
   outputDir: string,
   force: boolean = false
-): Promise<{ framed: number; skipped: number }> {
+): Promise<FrameResult> {
   await ensureVenv();
 
   const framePy = getFramePyPath();
@@ -36,18 +60,24 @@ export async function frameScreenshots(
   }
 
   const output = await runOrFail(python, args);
-  if (output) {
-    process.stdout.write(output + "\n");
+  const lines = (output ?? "").split("\n");
+
+  const human = lines
+    .filter((l) => !l.startsWith(RESULT_PREFIX))
+    .join("\n")
+    .trimEnd();
+  if (human) {
+    process.stdout.write(human + "\n");
   }
 
-  const framedFiles = existsSync(outputDir)
-    ? readdirSync(outputDir).filter((f) => f.endsWith(".png")).length
-    : 0;
-  const rawFiles = existsSync(inputDir)
-    ? readdirSync(inputDir).filter((f) => f.endsWith(".png")).length
-    : 0;
+  const resultLine = lines.find((l) => l.startsWith(RESULT_PREFIX));
+  if (!resultLine) {
+    throw new Error(
+      "frame.py finished without reporting a result. The vendored frame.py may be out of date."
+    );
+  }
 
-  return { framed: framedFiles, skipped: rawFiles - framedFiles };
+  return JSON.parse(resultLine.slice(RESULT_PREFIX.length)) as FrameResult;
 }
 
 /**
@@ -196,7 +226,7 @@ export async function frameAllAndroidScreenshots(
       const inputPath = join(dirPath, file);
       const outputPath = join(dirPath, file.replace(".png", "_framed.png"));
 
-      if (!force && existsSync(outputPath)) continue;
+      if (!needsFraming(inputPath, outputPath, force)) continue;
 
       const success = await frameAndroidScreenshot(inputPath, outputPath);
       if (success) totalFramed++;

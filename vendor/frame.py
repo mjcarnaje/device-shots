@@ -10,6 +10,7 @@ Requirements:
     pip install device-frames-core Pillow
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -17,6 +18,9 @@ from device_frames_core import apply_frame, list_devices
 
 VARIATION_PREFERENCE = ["space-black", "black", "space-grey", "silver"]
 IOS_CATEGORIES = {"apple-iphone", "apple-ipad"}
+
+# Machine-readable summary line, parsed by src/framing/frame.ts.
+RESULT_PREFIX = "__DEVICE_SHOTS_RESULT__"
 
 
 def build_resolution_map():
@@ -44,6 +48,28 @@ def get_image_size(path):
 
     with Image.open(path) as img:
         return img.size
+
+
+def is_framed_output(path):
+    """True if path is one of our own framed outputs rather than a raw capture."""
+    return path.stem.endswith("_framed")
+
+
+def needs_framing(raw_path, framed_path, force):
+    """True if raw_path has no current framed output.
+
+    Existence alone is not enough: `capture` overwrites a raw screenshot in
+    place, leaving a stale framed output next to it.
+    """
+    if force or not framed_path.exists():
+        return True
+    return raw_path.stat().st_mtime > framed_path.stat().st_mtime
+
+
+def emit_result(framed, skipped, failed):
+    """Report counts to the Node caller, which owns user-facing totals."""
+    payload = {"framed": framed, "skipped": skipped, "failed": failed}
+    print(f"{RESULT_PREFIX} {json.dumps(payload)}")
 
 
 def frame_screenshot(input_path, output_path, res_map):
@@ -82,25 +108,28 @@ def main():
     framed_dir = Path(args[1])
     framed_dir.mkdir(parents=True, exist_ok=True)
 
-    res_map = build_resolution_map()
-
-    screenshots = sorted(raw_dir.glob("*.png"))
+    # raw_dir and framed_dir are usually the same directory, so our own
+    # framed outputs would otherwise be picked up as inputs to re-frame.
+    screenshots = sorted(f for f in raw_dir.glob("*.png") if not is_framed_output(f))
     if not screenshots:
         print("No screenshots found.")
-        sys.exit(1)
+        emit_result(0, 0, 0)
+        return
+
+    res_map = build_resolution_map()
 
     skipped = 0
     to_frame = []
 
     for f in screenshots:
-        framed_name = f"{f.stem}_framed.png"
-        if not force and (framed_dir / framed_name).exists():
-            skipped += 1
-        else:
+        if needs_framing(f, framed_dir / f"{f.stem}_framed.png", force):
             to_frame.append(f)
+        else:
+            skipped += 1
 
     if not to_frame:
         print(f"All {skipped} screenshots already framed. Nothing to do.")
+        emit_result(0, skipped, 0)
         return
 
     if skipped:
@@ -114,6 +143,7 @@ def main():
             success += 1
 
     print(f"Done! Framed {success}/{len(to_frame)} screenshots.")
+    emit_result(success, skipped, len(to_frame) - success)
 
 
 if __name__ == "__main__":
